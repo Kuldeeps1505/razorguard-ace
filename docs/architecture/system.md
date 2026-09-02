@@ -84,10 +84,10 @@ sequenceDiagram
     participant P as Razorpay
     participant W as Celery worker
 
-    B->>A: “Buy a product within my budget”
+    B->>A: Buy a product within my budget
     A->>R: Typed purchase proposal
     R->>D: Resolve canonical product, campaign and intent
-    R->>D: Persist immutable intent + intent hash + audit event
+    R->>D: Persist immutable intent, hash, and audit event
     B->>R: POST /payments/checkout
     R->>D: Re-validate intent, merchant, price and policy
     alt Consent needed
@@ -96,11 +96,11 @@ sequenceDiagram
         R->>D: Persist consent approval + audit event
     end
     R->>D: Reserve budget and issue one-time signed capability
-    R->>Z: Acquire execution/idempotency protections
+    R->>Z: Acquire execution and idempotency protections
     R->>D: Create transaction and legal state transitions
     R->>P: Create Razorpay Test Mode order
     alt Provider acknowledges
-        R->>D: Store order ID; transaction becomes SUBMITTED
+        R->>D: Store order ID and mark transaction SUBMITTED
         P-->>R: Signed payment webhook
         R->>D: Verify, deduplicate, settle, audit final state
     else Provider outcome ambiguous

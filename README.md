@@ -49,9 +49,97 @@ flowchart LR
     R -. evidence .-> T
 ```
 
+## Trust boundaries
+
+```mermaid
+flowchart LR
+  subgraph untrusted[Untrusted boundary]
+    U[Buyer / browser]
+    L[LLM buyer agent]
+    X[Catalog text and external inputs]
+  end
+  subgraph trusted[RazorGuard trusted control plane]
+    API[FastAPI API + middleware]
+    INT[Intent canonicalization]
+    POL[Dual policy engine]
+    CON[Consent manager]
+    CAP[Capability issuer / verifier]
+    EXE[Checkout executor]
+    AUD[Hash-chained audit]
+    DB[(PostgreSQL)]
+    RED[(Redis)]
+    CEL[Celery worker]
+  end
+  subgraph provider[External provider boundary]
+    RP[Razorpay Test Mode]
+  end
+  U --> API
+  L --> INT
+  X --> L
+  API --> INT --> POL --> CON --> CAP --> EXE --> RP
+  INT --> DB
+  POL --> DB
+  CAP --> DB
+  EXE --> DB
+  API --> RED
+  EXE --> RED
+  AUD --> DB
+  RP -->|signed webhook| API
+  CEL -->|read-only reconciliation| RP
+  CEL --> DB
+```
+### What is trusted and what is not
+
+| Component | Trust level | What it may do |
+|---|---|---|
+| LLM and buyer agent | Untrusted initiator | Search, recommend, propose a typed intent. It cannot approve consent, issue a capability, or call the payment executor. |
+| Catalog and protocol payloads | Untrusted data | May inform a proposal; canonical catalog and merchant records are re-read before execution. |
+| RazorGuard API/control plane | Trusted enforcement point | Validates requests, runs deterministic policy, binds consent, issues capability, transitions state. |
+| PostgreSQL | Financial system of record | Stores policy, consent, intent, capability, transaction, webhook inbox, campaign reservation, and audit evidence. |
+| Redis | Supporting security infrastructure | Distributed locks, rate limits, idempotency cache, and Celery broker. Financial correctness must still survive its loss. |
+| Razorpay | Payment provider | Creates Test Mode orders and sends signed lifecycle events. |
+
 Read the full [system architecture](docs/architecture/system.md), [authorization model](docs/architecture/authorization.md), [payment state machine](docs/architecture/payment-state-machine.md), and [threat model](docs/architecture/threat-model.md).
 
 ## Payment lifecycle and monitoring
+
+## End-to-end payment lifecycle
+
+```mermaid
+sequenceDiagram
+    participant B as Buyer
+    participant A as AI buyer agent
+    participant R as RazorGuard API
+    participant D as PostgreSQL
+    participant Z as Redis
+    participant P as Razorpay
+    participant W as Celery worker
+
+    B->>A: Buy a product within my budget
+    A->>R: Typed purchase proposal
+    R->>D: Resolve canonical product, campaign and intent
+    R->>D: Persist immutable intent, hash, and audit event
+    B->>R: POST /payments/checkout
+    R->>D: Re-validate intent, merchant, price and policy
+    alt Consent needed
+        R-->>B: AWAITING_CONSENT
+        B->>R: Approve exact consent token
+        R->>D: Persist consent approval + audit event
+    end
+    R->>D: Reserve budget and issue one-time signed capability
+    R->>Z: Acquire execution and idempotency protections
+    R->>D: Create transaction and legal state transitions
+    R->>P: Create Razorpay Test Mode order
+    alt Provider acknowledges
+        R->>D: Store order ID and mark transaction SUBMITTED
+        P-->>R: Signed payment webhook
+        R->>D: Verify, deduplicate, settle, audit final state
+    else Provider outcome ambiguous
+        R->>D: Mark transaction UNKNOWN
+        W->>P: Read-only status query
+        W->>D: Resolve to COMPLETED or FAILED and audit it
+    end
+```
 
 | Stage | What happens | How it is controlled |
 |---|---|---|
