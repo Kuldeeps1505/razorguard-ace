@@ -64,9 +64,9 @@ Read the full [system architecture](docs/architecture/system.md), [authorization
 | Settlement | Provider outcome becomes final | Signed webhook; `UNKNOWN` is reconciled read-only, never blindly retried |
 | Evidence | Reviewer can inspect why and what happened | Correlation IDs, Prometheus metrics, hash-chained audit events |
 
-### Celery is part of the production-shaped design
+### Celery 
 
-Interactive checkout is synchronous in this demo so the caller receives the actual outcome immediately. Celery is actively used for **unknown-payment reconciliation**, retryable webhook work, and expired campaign-reservation cleanup. In an ambiguous provider timeout, the transaction becomes `UNKNOWN`; the worker queries the existing Razorpay order/payment state and resolves it safely. It does not submit a new payment.
+ Celery is actively used for **unknown-payment reconciliation**, retryable webhook work, and expired campaign-reservation cleanup. In an ambiguous provider timeout, the transaction becomes `UNKNOWN`; the worker queries the existing Razorpay order/payment state and resolves it safely. It does not submit a new payment.
 
 This distinction matters: *queue delay is recoverable; duplicate money movement is not.* A future queue-first checkout path requires a durable outbox/job record and a stable idempotency key before any inline fallback is safe.
 
@@ -78,6 +78,9 @@ This distinction matters: *queue delay is recoverable; duplicate money movement 
 4. **Razorpay Test Mode Dashboard** — show the actual order.
 5. **Audit Trail** — show the persisted reasoning/evidence chain.
 6. **Security Dashboard** — run **price drift** or **forged webhook** and show the system block it without creating an unsafe payment.
+
+**Razorpay Test Mode Dashboard**
+![alt text](image-1.png)
 
 ## Security properties
 
@@ -104,6 +107,7 @@ The suite includes focused unit and security coverage for the core claims:
 - Control-plane, rate-limit, commerce-control, and chaos-failure behavior
 
 Relevant test modules live in [`tests/unit`](tests/unit) and [`tests/security`](tests/security). Run them with the commands below.
+
 
 ## Run locally
 
