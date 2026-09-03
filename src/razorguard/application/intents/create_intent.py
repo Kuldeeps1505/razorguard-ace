@@ -137,9 +137,16 @@ async def create_intent(
         )
         if not campaign:
             raise InvalidIntentError("Campaign is unavailable or expired")
-        categories = json.loads(campaign.eligible_categories)
+        # Category labels come from merchant configuration while product
+        # categories come from the canonical catalog.  Compare normalized
+        # values so a display-case difference ("Electronics" vs
+        # "electronics") cannot make an otherwise valid campaign unusable.
+        categories = {str(category).strip().casefold() for category in json.loads(campaign.eligible_categories)}
         product_ids = json.loads(campaign.eligible_product_ids)
-        if (categories and product.category not in categories) or (product_ids and str(product.id) not in product_ids):
+        if (
+            (categories and product.category.strip().casefold() not in categories)
+            or (product_ids and str(product.id) not in product_ids)
+        ):
             raise InvalidIntentError("Campaign is not eligible for this product")
         if campaign.discount_type == DiscountType.PERCENTAGE:
             discount_minor = canonical_amount * campaign.discount_value // 100

@@ -45,7 +45,9 @@ async def create_campaign(
         discount_type=request.discount_type,
         discount_value=request.discount_value,
         max_discount_minor=request.max_discount_minor,
-        eligible_categories=json.dumps(request.eligible_categories),
+        eligible_categories=json.dumps(
+            [category.strip().casefold() for category in request.eligible_categories if category.strip()]
+        ),
         eligible_product_ids=json.dumps(request.eligible_product_ids),
         max_uses_per_agent_per_day=request.max_uses_per_agent_per_day,
         max_total_uses=request.max_total_uses,

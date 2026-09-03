@@ -115,8 +115,10 @@ export type CatalogProduct = {
   availability: string;
 };
 
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -179,6 +181,7 @@ export const api = {
     }),
   audit: () => request<AuditEvent[]>("/audit/events"),
   security: () => request<SecurityDashboard>("/security/dashboard"),
+  seedSecurityDemo: () => request<SecurityDashboard>("/security/demo-seed", { method: "POST" }),
   chaos: (scenario: string) => request<{ scenario: string; status: string; explanation: string; side_effects: boolean }>("/chaos/simulate", {
     method: "POST", body: JSON.stringify({ scenario }),
   }),

@@ -16,11 +16,11 @@ async def reserve_campaign(
     existing = await session.scalar(select(CampaignReservation).where(CampaignReservation.intent_id == intent_id))
     if existing:
         return existing
-        reservation = CampaignReservation(
-            id=uuid.UUID(generate_id()), campaign_id=campaign_id,
-            intent_id=intent_id, agent_id=agent_id, status="RESERVED",
-            expires_at=utcnow_plus(minutes=10),
-        )
+    reservation = CampaignReservation(
+        id=uuid.UUID(generate_id()), campaign_id=campaign_id,
+        intent_id=intent_id, agent_id=agent_id, status="RESERVED",
+        expires_at=utcnow_plus(minutes=10),
+    )
     session.add(reservation)
     await session.flush()
     return reservation

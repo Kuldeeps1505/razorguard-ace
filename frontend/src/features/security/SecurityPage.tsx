@@ -9,6 +9,7 @@ export default function SecurityPage() {
   const [chaosResult, setChaosResult] = useState("");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [runningScenario, setRunningScenario] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -40,6 +41,20 @@ export default function SecurityPage() {
     }
   }
 
+  async function seedDemoSignals() {
+    setSeeding(true);
+    setError("");
+    try {
+      setData(await api.seedSecurityDemo());
+      setUpdatedAt(new Date());
+      setChaosResult("Demo telemetry loaded: counters represent safe, non-financial test signals only.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSeeding(false);
+    }
+  }
+
   const items: Array<[keyof SecurityDashboard, string]> = [
     ["policy_violations_blocked", "Policy violations blocked"],
     ["duplicate_payments_prevented", "Duplicate payments prevented"],
@@ -63,6 +78,7 @@ export default function SecurityPage() {
         <span className="eyebrow">SECURITY CHAOS DEMO</span><h3>Prove the control plane fails safely</h3>
         <p className="tag">These are deterministic simulations; they never create payments or mutate production data.</p>
         <div className="row">
+          <button className="btn" disabled={seeding || runningScenario !== null} onClick={() => void seedDemoSignals()}>{seeding ? "Loading signals…" : "Load safe demo signals"}</button>
           {SCENARIOS.map((scenario) => <button key={scenario} className="btn ghost" disabled={runningScenario !== null} onClick={() => void runScenario(scenario)}>{runningScenario === scenario ? "Running…" : scenario.replaceAll("_", " ")}</button>)}
         </div>
         {chaosResult && <div className="msg agent" style={{ marginTop: 14 }}>{chaosResult}</div>}

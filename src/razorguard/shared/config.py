@@ -79,6 +79,20 @@ class Settings(BaseSettings):
     log_format: Literal["json", "console"] = "json"
     metrics_port: int = 9090
 
+    # Comma-separated browser origins permitted to call the public API.
+    # Set this to the Vercel deployment URL in Render production settings.
+    cors_origins: str = "http://localhost:3000,http://localhost:5173,http://localhost:8080"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        """Accept Render's PostgreSQL URL while using SQLAlchemy asyncpg."""
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+asyncpg://", 1)
+        return value
+
     @field_validator("razorpay_mode")
     @classmethod
     def validate_razorpay_mode(cls, v: str, info: object) -> str:
@@ -93,6 +107,10 @@ class Settings(BaseSettings):
     @property
     def is_testing(self) -> bool:
         return self.app_env == "testing"
+
+    @property
+    def allowed_cors_origins(self) -> list[str]:
+        return [origin.strip().rstrip("/") for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache

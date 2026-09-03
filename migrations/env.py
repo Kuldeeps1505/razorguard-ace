@@ -27,6 +27,10 @@ if config.config_file_name is not None:
 db_url = os.environ.get("DATABASE_URL", "")
 if not db_url:
     raise RuntimeError("DATABASE_URL environment variable is not set")
+if db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
 
 # Alembic needs a sync-compatible URL for the config object
 sync_url = db_url.replace("postgresql+asyncpg://", "postgresql://")

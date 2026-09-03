@@ -5,11 +5,12 @@ GET /security/dashboard — live counters from Prometheus metrics.
 These are real system events, not decorative AI scores.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from prometheus_client import Counter
 from pydantic import BaseModel
 
 from razorguard.infrastructure.observability import metrics as m
+from razorguard.shared.config import get_settings
 
 router = APIRouter()
 
@@ -54,3 +55,30 @@ async def security_dashboard() -> SecurityDashboardResponse:
         consent_granted=_counter_total(m.consent_granted),
         consent_rejected=_counter_total(m.consent_rejected),
     )
+
+
+@router.post(
+    "/demo-seed",
+    response_model=SecurityDashboardResponse,
+    summary="Development-only security telemetry seed",
+)
+async def seed_demo_security_signals() -> SecurityDashboardResponse:
+    """Seed a few non-financial demo signals for a recorded walkthrough.
+
+    This only changes in-process Prometheus counters. It creates no payment,
+    intent, consent, capability, audit event, or database record. It is never
+    available in production.
+    """
+    if get_settings().is_production:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not found",
+        )
+
+    m.policy_blocks.labels(reason="demo_price_drift").inc(2)
+    m.duplicate_payments_prevented.inc(1)
+    m.capability_replays_rejected.inc(1)
+    m.prompt_injections_detected.inc(2)
+    m.payments_reconciled.labels(outcome="completed").inc(1)
+    m.webhook_forgeries_rejected.inc(1)
+    return await security_dashboard()
